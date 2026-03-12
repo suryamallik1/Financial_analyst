@@ -1,0 +1,16 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+.env
+.idea/
+.vscode/
+.git/
+.gitignore
+*.log
+test_out.log
+uvicorn.log
+uvicorn.pid

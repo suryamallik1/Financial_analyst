@@ -1,0 +1,15 @@
+version: "3.8"
+
+services:
+  api:
+    build: .
+    container_name: financial_analyst_api
+    ports:
+      - "8000:8080" # Map host's port 8000 to Cloud Run's expected port 8080
+    environment:
+      - ENVIRONMENT=development
+      - PORT=8080
+    volumes:
+      - ./app:/app/app # Live reload capable, optional but useful for local dev
+      # Make sure we don't accidentally override installed dependencies with a local venv
+      - /app/venv
