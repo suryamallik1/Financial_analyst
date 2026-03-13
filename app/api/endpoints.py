@@ -33,11 +33,9 @@ async def analyze_portfolio(request: AnalysisRequest):
     try:
         logger.info(f"Starting analysis workflow for request: {request.user_request}")
         
-        # Invoke the LangGraph workflow
-        # Note: in a production app, we might want to run this asynchronously 
-        # using run_in_executor or similar if it takes a long time,
-        # or use LangGraph's async invocation methods.
-        final_state = await app_workflow.ainvoke(initial_state)
+        # Invoke the LangGraph workflow with a configuration that includes a thread_id for the checkpointer
+        config = {"configurable": {"thread_id": "default_analysis_thread"}}
+        final_state = await app_workflow.ainvoke(initial_state, config=config)
         
         # Format proposals for JSON response
         formatted_proposals = []

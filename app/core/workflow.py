@@ -1,4 +1,5 @@
 from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
 from app.core.state import PortfolioState
 from app.agents.value_analyst import ValueAnalystAgent
 from app.agents.technical_analyst import TechnicalAnalystAgent
@@ -67,7 +68,9 @@ def create_workflow() -> StateGraph:
         }
     )
     
-    return workflow.compile()
+    memory = MemorySaver()
+    
+    return workflow.compile(checkpointer=memory)
     
 # Export the compiled runner
 app_workflow = create_workflow()

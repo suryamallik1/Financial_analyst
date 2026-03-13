@@ -1,5 +1,6 @@
-from app.core.state import PortfolioState, AssetProposal
 from app.agents.base import BaseAgent
+from app.core.resilience import handle_gemini_quota
+from app.core.state import PortfolioState, AssetProposal
 from app.tools.macro_data import MacroDataClient
 from langchain_core.messages import SystemMessage, HumanMessage
 
@@ -17,6 +18,7 @@ class RiskComplianceAgent(BaseAgent):
         Output ONLY a JSON object with 'symbol' (e.g., TLT for bonds, GLD for gold) and 'rationale'.
         """
 
+    @handle_gemini_quota
     async def run(self, state: PortfolioState) -> PortfolioState:
         # In a real app, fetch yield curve and VIX
         

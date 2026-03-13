@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Asset Command Center</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <header>
+            <div class="logo-section">
+                <h1>COMMAND CENTER <span style="opacity: 0.3;">//</span> ASSET INTELLIGENCE</h1>
+            </div>
+            <div class="status-section">
+                <span class="status-badge">● SYSTEM ACTIVE</span>
+            </div>
+        </header>
+
+        <main class="main-grid">
+            <section class="console-section">
+                <div class="console-card">
+                    <div class="console-header">
+                        SWARM_TERMINAL_V1.0.4.LOCAL
+                    </div>
+                    <div class="console-output" id="console-output">
+                        <div class="agent-log">
+                            <span class="agent-name agent-tech">[SYSTEM]</span> Initializing agentic cluster...
+                        </div>
+                        <div class="agent-log">
+                            <span class="agent-name agent-tech">[SYSTEM]</span> Ready. Enter an asset class or analysis goal below.
+                        </div>
+                    </div>
+                    <div class="console-input-area">
+                        <input type="text" id="user-input" placeholder="e.g. Find high momentum tech stocks with strong fundamentals" autocomplete="off">
+                        <button id="send-btn">TRANSMIT</button>
+                    </div>
+                </div>
+            </section>
+
+            <aside class="proposals-panel" id="proposals-panel">
+                <div style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 0.5rem; font-weight: bold; letter-spacing: 1px;">ACTIVE PROPOSALS</div>
+                <!-- Proposals will be injected here -->
+            </aside>
+        </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

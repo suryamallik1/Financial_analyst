@@ -33,32 +33,34 @@ class CacheClient:
             logger.error(f"Failed to create/verify dataset {self.dataset_id}: {e}")
             
     def _ensure_tables_exist(self):
-        # Table schema for backtest results
+        # Table schema for generic API response cache
         schema = [
+            bigquery.SchemaField("service", "STRING", mode="REQUIRED"),
             bigquery.SchemaField("cache_key", "STRING", mode="REQUIRED"),
-            bigquery.SchemaField("result_json", "STRING", mode="REQUIRED"),
+            bigquery.SchemaField("response_json", "STRING", mode="REQUIRED"),
             bigquery.SchemaField("created_at", "TIMESTAMP", mode="REQUIRED", default_value_expression="CURRENT_TIMESTAMP()"),
         ]
-        table_id = f"{self.dataset_id}.backtest_cache"
+        table_id = f"{self.dataset_id}.api_cache"
         table = bigquery.Table(table_id, schema=schema)
         self.client.create_table(table, exists_ok=True)
 
-    async def get_cached_backtest(self, cache_key: str) -> Optional[Dict[str, Any]]:
+    async def get_cached_response(self, service: str, cache_key: str) -> Optional[Any]:
         """
-        Retrieves a cached JSON result using the exact key.
+        Retrieves a cached JSON response for a given service and key.
         """
         if not self.client:
             return None
             
         query = f"""
-            SELECT result_json 
-            FROM `{self.dataset_id}.backtest_cache` 
-            WHERE cache_key = @cache_key
+            SELECT response_json 
+            FROM `{self.dataset_id}.api_cache` 
+            WHERE service = @service AND cache_key = @cache_key
             ORDER BY created_at DESC
             LIMIT 1
         """
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
+                bigquery.ScalarQueryParameter("service", "STRING", service),
                 bigquery.ScalarQueryParameter("cache_key", "STRING", cache_key)
             ]
         )
@@ -68,23 +70,27 @@ class CacheClient:
             results = query_job.result()
             
             for row in results:
-                return json.loads(row.result_json)
+                return json.loads(row.response_json)
                 
             return None
         except Exception as e:
-            logger.error(f"Error reading from cache: {e}")
+            logger.error(f"Error reading from api_cache: {e}")
             return None
 
-    async def set_cached_backtest(self, cache_key: str, data: Dict[str, Any]):
+    async def set_cached_response(self, service: str, cache_key: str, data: Any):
         """
-        Stores result data as JSON string.
+        Stores any serializable data as JSON string in the api_cache.
         """
         if not self.client:
             return
             
-        table_id = f"{self.dataset_id}.backtest_cache"
+        table_id = f"{self.dataset_id}.api_cache"
         rows_to_insert = [
-            {"cache_key": cache_key, "result_json": json.dumps(data)}
+            {
+                "service": service, 
+                "cache_key": cache_key, 
+                "response_json": json.dumps(data)
+            }
         ]
         
         try:
@@ -92,4 +98,4 @@ class CacheClient:
             if errors:
                 logger.error(f"Errors occurred while caching to BigQuery: {errors}")
         except Exception as e:
-             logger.error(f"Error writing to cache: {e}")
+             logger.error(f"Error writing to api_cache: {e}")

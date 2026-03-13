@@ -9,6 +9,8 @@ services:
     environment:
       - ENVIRONMENT=development
       - PORT=8080
+    env_file:
+      - .env
     volumes:
       - ./app:/app/app # Live reload capable, optional but useful for local dev
       # Make sure we don't accidentally override installed dependencies with a local venv

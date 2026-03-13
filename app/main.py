@@ -1,5 +1,8 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
+import os
 from app.core.config import settings
 from app.api.endpoints import router as api_router
 
@@ -19,7 +22,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Mount static files
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
 app.include_router(api_router, prefix="/api/v1")
+
+@app.get("/")
+async def read_index():
+    return FileResponse('app/static/index.html')
 
 @app.get("/health")
 async def health_check():

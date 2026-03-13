@@ -2,13 +2,28 @@ import httpx
 import pandas as pd
 from typing import Optional, Dict, Any
 from app.core.config import settings
+from app.core.cache import CacheClient
+from app.core.resilience import rate_limit, retry_http_request
 
 class MacroDataClient:
     def __init__(self):
         self.fred_key = settings.FRED_API_KEY
         self.base_url = "https://api.stlouisfed.org/fred/series/observations"
+        self.cache = CacheClient()
         
+    @rate_limit("fred", requests_per_minute=20)
+    @retry_http_request()
     async def get_series(self, series_id: str, observation_start: str, observation_end: str) -> pd.DataFrame:
+        """Fetches series data from FRED (e.g., T10Y2Y for yield curve) with caching."""
+        cache_key = f"fred_{series_id}_{observation_start}_{observation_end}"
+        cached_data = await self.cache.get_cached_response("fred", cache_key)
+        
+        if cached_data:
+            df = pd.DataFrame(cached_data)
+            df['date'] = pd.to_datetime(df['date'])
+            df.set_index('date', inplace=True)
+            return df
+
         params = {
             "series_id": series_id,
             "api_key": self.fred_key,
@@ -25,7 +40,11 @@ class MacroDataClient:
             if 'observations' not in data:
                 return pd.DataFrame()
                 
-            df = pd.DataFrame(data['observations'])
+            observations = data['observations']
+            # Store in cache before converting to DF index if we want it clean
+            await self.cache.set_cached_response("fred", cache_key, observations)
+
+            df = pd.DataFrame(observations)
             df['date'] = pd.to_datetime(df['date'])
             # Filter out missing values indicated by '.'
             df = df[df['value'] != '.']
