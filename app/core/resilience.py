@@ -68,8 +68,8 @@ def handle_gemini_quota(func: Callable[..., Any]):
     Special handling for Gemini 429 errors.
     """
     @retry(
-        stop=stop_after_attempt(5),
-        wait=wait_exponential(multiplier=2, max=30),
+        stop=stop_after_attempt(10),
+        wait=wait_exponential(multiplier=2, max=60),
         retry=retry_if_exception_type(Exception), # LangChain wraps these in generic or specific exceptions
         # We need to be careful not to retry permanent errors
         before_sleep=before_sleep_log(logger, logging.ERROR),
