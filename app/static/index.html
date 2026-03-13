@@ -38,9 +38,32 @@
                 </div>
             </section>
 
-            <aside class="proposals-panel" id="proposals-panel">
-                <div style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 0.5rem; font-weight: bold; letter-spacing: 1px;">ACTIVE PROPOSALS</div>
-                <!-- Proposals will be injected here -->
+            <aside class="proposals-panel">
+                <div style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 0.8rem; font-weight: bold; letter-spacing: 1px;">SWARM STATUS</div>
+                
+                <div class="agent-status-grid">
+                    <div class="agent-status-item" id="status-value">
+                        <span class="status-dot"></span>
+                        <span class="label">VALUE</span>
+                    </div>
+                    <div class="agent-status-item" id="status-technical">
+                        <span class="status-dot"></span>
+                        <span class="label">TECH</span>
+                    </div>
+                    <div class="agent-status-item" id="status-risk">
+                        <span class="status-dot"></span>
+                        <span class="label">RISK</span>
+                    </div>
+                    <div class="agent-status-item" id="status-financial">
+                        <span class="status-dot"></span>
+                        <span class="label">FINAL</span>
+                    </div>
+                </div>
+
+                <div style="color: var(--text-muted); font-size: 0.8rem; margin: 1.5rem 0 0.5rem 0; font-weight: bold; letter-spacing: 1px;">ACTIVE PROPOSALS</div>
+                <div id="proposals-panel">
+                    <!-- Proposals will be injected here -->
+                </div>
             </aside>
         </main>
     </div>

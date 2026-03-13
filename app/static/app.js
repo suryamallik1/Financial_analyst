@@ -12,18 +12,35 @@ document.addEventListener('DOMContentLoaded', () => {
         consoleOutput.scrollTop = consoleOutput.scrollHeight;
     }
 
+    const agentMap = {
+        'ValueAnalystAgent': 'status-value',
+        'TechnicalAnalystAgent': 'status-technical',
+        'RiskComplianceAgent': 'status-risk',
+        'FinancialAnalystAgent': 'status-financial'
+    };
+
+    function setAgentActive(agentName, active) {
+        const id = agentMap[agentName];
+        if (id) {
+            const el = document.getElementById(id);
+            if (active) el.classList.add('active');
+            else el.classList.remove('active');
+        }
+    }
+
     async function handleAnalysis() {
         const query = userInput.value.trim();
         if (!query) return;
 
         userInput.value = '';
         addLog('USER', query, 'tech');
-        addLog('SYSTEM', 'Spinning up swarm...', 'tech');
+        addLog('SYSTEM', 'Initializing swarm...', 'tech');
         
-        // Clear old proposals
+        // Reset UI
         const header = proposalsPanel.firstElementChild;
         proposalsPanel.innerHTML = '';
         proposalsPanel.appendChild(header);
+        Object.values(agentMap).forEach(id => document.getElementById(id).classList.remove('active'));
 
         try {
             const response = await fetch('/api/v1/analyze', {
@@ -34,26 +51,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!response.ok) throw new Error('API Error');
 
-            const data = await response.json();
-            
-            // Log agents incrementally (mocking the progression for visual effect)
-            addLog('VALUE_ANALYST', 'Scanning SEC 10-K filings for technical moats...', 'value');
-            addLog('TECH_ANALYST', 'Calculating RSI and SMA crossover signals...', 'tech');
-            addLog('RISK_AGENT', 'Monitoring macro filters and yield curve status...', 'risk');
-            addLog('FINANCIAL_ANALYST', 'Running VectorBT backtests on proposed assets...', 'financial');
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let activeAgent = null;
 
-            if (data.proposals && data.proposals.length > 0) {
-                data.proposals.forEach(prop => {
-                    renderProposal(prop, data.is_validated);
-                });
-                addLog('SYSTEM', 'Analysis complete. Final report generated.', 'tech');
-            } else {
-                addLog('SYSTEM', 'No suitable assets found meeting criteria.', 'risk');
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value);
+                const lines = chunk.split('\n');
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const event = JSON.parse(line.substring(6));
+                        
+                        if (event.type === 'agent_start') {
+                            if (activeAgent) setAgentActive(activeAgent, false);
+                            activeAgent = event.agent;
+                            setAgentActive(activeAgent, true);
+                            addLog(activeAgent.replace('Agent', ''), 'Thinking...', 'tech');
+                        } 
+                        else if (event.type === 'tool_start') {
+                            addLog('SYSTEM', `Calling tool: <span style="color:#f2cc60">${event.tool}</span>`, 'tech');
+                        }
+                        else if (event.type === 'final_result') {
+                            if (activeAgent) setAgentActive(activeAgent, false);
+                            if (event.proposals && event.proposals.length > 0) {
+                                event.proposals.forEach(prop => renderProposal(prop, event.is_validated));
+                                addLog('SYSTEM', 'Analysis complete.', 'tech');
+                            } else {
+                                addLog('SYSTEM', 'No suitable assets found.', 'risk');
+                            }
+                        }
+                        else if (event.type === 'error') {
+                            addLog('ERROR', event.detail, 'risk');
+                        }
+                    }
+                }
             }
 
         } catch (err) {
-            addLog('ERROR', 'Workflow execution failed. Check server logs.', 'risk');
+            addLog('ERROR', 'Connection lost or server failed.', 'risk');
             console.error(err);
+        } finally {
+            Object.values(agentMap).forEach(id => document.getElementById(id).classList.remove('active'));
         }
     }
 

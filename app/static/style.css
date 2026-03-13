@@ -51,6 +51,7 @@ header {
     letter-spacing: -0.5px;
     background: linear-gradient(90deg, #fff, var(--accent-blue));
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
@@ -198,6 +199,60 @@ header {
 
 .metric-label { color: var(--text-muted); display: block; margin-bottom: 2px; }
 .metric-value { font-weight: bold; color: #fff; }
+
+/* Agent Status Grid */
+.agent-status-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.8rem;
+}
+
+.agent-status-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    padding: 0.6rem;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    transition: all 0.3s ease;
+}
+
+.agent-status-item.active {
+    background: rgba(88, 166, 255, 0.1);
+    border-color: var(--accent-blue);
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #30363d;
+    box-shadow: 0 0 0 rgba(88, 166, 255, 0);
+}
+
+.agent-status-item.active .status-dot {
+    background: var(--accent-blue);
+    box-shadow: 0 0 8px var(--accent-blue);
+    animation: pulse 1.5s infinite;
+}
+
+.agent-status-item .label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+}
+
+.agent-status-item.active .label {
+    color: #fff;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.2); opacity: 0.7; }
+    100% { transform: scale(1); opacity: 1; }
+}
 
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(5px); }

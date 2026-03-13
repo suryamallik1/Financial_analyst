@@ -1,11 +1,15 @@
-INFO:     Started server process [56125]
+Could not initialize BigQuery client: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.. Caching will be disabled.
+Could not initialize BigQuery client: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.. Caching will be disabled.
+Could not initialize BigQuery client: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.. Caching will be disabled.
+Could not initialize BigQuery client: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.. Caching will be disabled.
+INFO:     Started server process [70777]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
-INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 Starting Multi-Asset Intelligence Platform in development mode
-INFO:     127.0.0.1:64409 - "GET /health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:64409 - "POST /api/v1/analyze HTTP/1.1" 200 OK
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-INFO:     Finished server process [56125]
+INFO:     127.0.0.1:55273 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55273 - "GET /static/app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55274 - "GET /static/style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55355 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55355 - "GET /static/app.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:55356 - "GET /static/style.css HTTP/1.1" 304 Not Modified
