@@ -13,7 +13,13 @@
                 <h1>COMMAND CENTER <span style="opacity: 0.3;">//</span> ASSET INTELLIGENCE</h1>
             </div>
             <div class="status-section">
-                <span class="status-badge">● SYSTEM ACTIVE</span>
+                <div class="agent-status-cluster">
+                    <div class="agent-status" id="status-value"><span class="status-dot dot-value"></span> VALUE</div>
+                    <div class="agent-status" id="status-tech"><span class="status-dot dot-tech"></span> TECH</div>
+                    <div class="agent-status" id="status-risk"><span class="status-dot dot-risk"></span> RISK</div>
+                    <div class="agent-status" id="status-financial"><span class="status-dot dot-financial"></span> FINANCE</div>
+                </div>
+                <span class="status-badge" style="margin-left: 1.5rem;">● SYSTEM ACTIVE</span>
             </div>
         </header>
 
@@ -39,6 +45,7 @@
             </section>
 
             <aside class="proposals-panel" id="proposals-panel">
+                <div id="synthesis-report"></div>
                 <div style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 0.5rem; font-weight: bold; letter-spacing: 1px;">ACTIVE PROPOSALS</div>
                 <!-- Proposals will be injected here -->
             </aside>

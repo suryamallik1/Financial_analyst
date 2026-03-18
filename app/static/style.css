@@ -51,6 +51,7 @@ header {
     letter-spacing: -0.5px;
     background: linear-gradient(90deg, #fff, var(--accent-blue));
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
@@ -63,6 +64,40 @@ header {
     font-weight: 600;
     border: 1px solid rgba(63, 185, 80, 0.2);
 }
+
+.agent-status-cluster {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+}
+
+.agent-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #30363d;
+    transition: all 0.3s ease;
+}
+
+.dot-value.pulse { background: #f2cc60; box-shadow: 0 0 10px #f2cc60; animation: pulse-yellow 1.5s infinite; }
+.dot-tech.pulse { background: #58a6ff; box-shadow: 0 0 10px #58a6ff; animation: pulse-blue 1.5s infinite; }
+.dot-risk.pulse { background: #ff7b72; box-shadow: 0 0 10px #ff7b72; animation: pulse-red 1.5s infinite; }
+.dot-financial.pulse { background: #d2a8ff; box-shadow: 0 0 10px #d2a8ff; animation: pulse-purple 1.5s infinite; }
+
+@keyframes pulse-yellow { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
+@keyframes pulse-blue { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
+@keyframes pulse-red { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
+@keyframes pulse-purple { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
 
 .main-grid {
     display: grid;
@@ -152,6 +187,30 @@ header {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+}
+
+.synthesis-card {
+    background: linear-gradient(135deg, rgba(88, 166, 255, 0.15), rgba(210, 168, 255, 0.15));
+    border: 1px solid rgba(88, 166, 255, 0.3);
+    border-radius: 12px;
+    padding: 1.2rem;
+    margin-bottom: 1rem;
+    animation: fadeIn 0.8s ease-out;
+}
+
+.synthesis-header {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--accent-blue);
+    margin-bottom: 0.5rem;
+    letter-spacing: 1px;
+}
+
+.synthesis-body {
+    font-size: 0.95rem;
+    color: #fff;
+    line-height: 1.5;
+    font-weight: 500;
 }
 
 .proposal-card {

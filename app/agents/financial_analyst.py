@@ -4,6 +4,7 @@ from app.core.state import PortfolioState
 from app.tools.backtest import BacktestEngine
 from app.tools.market_data import MarketDataClient
 from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.callbacks.manager import adispatch_custom_event
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
@@ -17,6 +18,33 @@ class FinancialAnalystAgent(BaseAgent):
         super().__init__()
         self.market_data_client = MarketDataClient()
         
+    @handle_gemini_quota
+    async def plan(self, state: PortfolioState) -> PortfolioState:
+        """
+        Initial planning phase. Analyzes user request and provides 
+        instructions to the specialist agents.
+        """
+        user_req = state.get("user_request")
+        planning_prompt = [
+            SystemMessage(content=(
+                "You are the Lead Financial Analyst and Orchestrator. "
+                "Analyze the user request and create a concise 'Execution Plan' for three specialist agents: "
+                "1. Value Analyst (Intrinsic Gap), 2. Technical Analyst (Momentum), 3. Risk & Compliance (Macro Hedge). "
+                "Specify what kind of assets or sectors each should focus on to satisfy the user's objective."
+            )),
+            HumanMessage(content=user_req)
+        ]
+        
+        res = await self.llm.ainvoke(planning_prompt)
+        plan_text = self.extract_llm_text(res.content)
+        
+        print(f"Lead Analyst Plan Generated: {plan_text[:100]}...")
+        
+        return {
+            "analysis_plan": plan_text,
+            "current_agent": "financial_analyst_planner"
+        }
+
     @handle_gemini_quota
     async def run(self, state: PortfolioState) -> PortfolioState:
         proposals = state.get("proposals", [])
@@ -37,6 +65,7 @@ class FinancialAnalystAgent(BaseAgent):
             # 1. Fetch real historical price data
             ticker = proposal.symbol
             print(f"Fetching historical prices for {ticker} for backtesting...")
+            await adispatch_custom_event("tool_call", {"tool": "Historical_Price_API", "input": ticker})
             try:
                 real_price_data = await self.market_data_client.get_historical_ohlcv(
                     ticker, start_date_str, end_date_str
@@ -61,6 +90,7 @@ class FinancialAnalystAgent(BaseAgent):
                 )
 
             # 2. Run real backtest (Simulating buy and hold)
+            await adispatch_custom_event("tool_call", {"tool": "VectorBT_Engine", "input": ticker})
             metrics = BacktestEngine.run_buy_and_hold(real_price_data)
             proposal.metrics = metrics
             
@@ -80,15 +110,30 @@ class FinancialAnalystAgent(BaseAgent):
                 
             updated_proposals.append(proposal)
             
-        # 3. Synthesize final report if all accepted
+        # 3. Synthesize final report using LLM for personalization
         final_report = None
-        if all_validated and len(updated_proposals) > 0:
-            final_report = "Barbell Allocation Synthesized: " + ", ".join([p.symbol for p in updated_proposals if p.status == 'accepted'])
-            
-        # Do not return the `proposals` array back to the state since it triggers the `extend_list` reducer and duplicates it.
-        # We mutated `proposal.status` and `proposal.metrics` in place.
+        accepted_proposals = [p for p in updated_proposals if p.status == 'accepted']
+        
+        if len(accepted_proposals) > 0 or all_validated:
+            synthesis_prompt = [
+                SystemMessage(content=(
+                    "You are a Lead Financial Analyst. Your task is to synthesize a final investment report "
+                    "that explains HOW the suggested assets meet the user's specific request. "
+                    "Be concise, professional, and highlight the synergy between the assets (e.g., value, momentum, and hedge)."
+                )),
+                HumanMessage(content=(
+                    f"User Request: {state.get('user_request')}\n\n"
+                    f"Selected Assets:\n" + "\n".join([f"- {p.symbol}: {p.rationale} (Metrics: {p.metrics})" for p in accepted_proposals])
+                ))
+            ]
+            synthesis_res = await self.llm.ainvoke(synthesis_prompt)
+            final_report = self.extract_llm_text(synthesis_res.content)
+        elif state.get("iterations", 0) >= 2:
+             final_report = f"Analysis concluding after {state.get('iterations')} iterations. Best candidates: {', '.join([p.symbol for p in updated_proposals])}. Some assets require further risk-adjustment."
+
         return {
             "is_validated": all_validated,
             "final_report": final_report,
-            "current_agent": "financial_analyst"
+            "current_agent": "financial_analyst",
+            "iterations": state.get("iterations", 0) + 1
         }

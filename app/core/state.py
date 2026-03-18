@@ -20,8 +20,26 @@ class AssetProposal(BaseModel):
 
 from typing_extensions import TypedDict
 
-def extend_list(a: List, b: List) -> List:
-    return a + b
+def merge_proposals(existing: List[AssetProposal], new: List[AssetProposal]) -> List[AssetProposal]:
+    """
+    Merging strategy that updates existing proposals if the symbol matches,
+    otherwise appends the new proposal.
+    """
+    merged = {p.symbol: p for p in existing}
+    for p in new:
+        if p.symbol in merged:
+            # Update existing proposal fields while keeping persistent ones if needed
+            merged[p.symbol].rationale = p.rationale
+            merged[p.symbol].strategy_type = p.strategy_type
+            if p.metrics:
+                merged[p.symbol].metrics = p.metrics
+            if p.status != "pending":
+                merged[p.symbol].status = p.status
+            if p.feedback:
+                merged[p.symbol].feedback = p.feedback
+        else:
+            merged[p.symbol] = p
+    return list(merged.values())
 
 class PortfolioState(TypedDict):
     """
@@ -30,8 +48,8 @@ class PortfolioState(TypedDict):
     # The original query/focus from the user
     user_request: str
     
-    # List of proposals from specialists, concatenated using `extend_list`
-    proposals: Annotated[List[AssetProposal], extend_list]
+    # List of proposals from specialists, concatenated using `merge_proposals`
+    proposals: Annotated[List[AssetProposal], merge_proposals]
     
     # Current active sub-task or node the agent is evaluating
     current_agent: str
@@ -39,5 +57,10 @@ class PortfolioState(TypedDict):
     # Final synthesized report from the Lead Analyst
     final_report: Optional[str]
     
+    # Instructions from the Lead Analyst to the specialists
+    analysis_plan: Optional[str]
+    
     # Has the portfolio met the gatekeeper's criteria?
     is_validated: bool
+    # Number of refinement iterations
+    iterations: int

@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     POLYGON_API_KEY: str = ""
     FRED_API_KEY: str = ""
     NEWS_API_KEY: str = ""
+    SERPER_API_KEY: str = ""
     
     # GCP
     GCP_PROJECT_ID: str = ""
