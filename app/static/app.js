@@ -3,165 +3,299 @@ document.addEventListener('DOMContentLoaded', () => {
     const userInput = document.getElementById('user-input');
     const sendBtn = document.getElementById('send-btn');
     const proposalsPanel = document.getElementById('proposals-panel');
+    const synthesisReport = document.getElementById('synthesis-report');
+    const synthesisLoading = document.getElementById('synthesis-loading');
+
+    // Agent to class mapping for visualization
+    const agentNodeMapping = {
+        'intake_agent': 'intake',
+        'Intake_Agent': 'intake',
+        'value_analyst': 'value',
+        'Value_Analyst': 'value',
+        'technical_analyst': 'tech',
+        'Technical_Analyst': 'tech',
+        'risk_compliance': 'risk',
+        'Risk_Compliance': 'risk',
+        'financial_analyst': 'fin',
+        'Financial_Analyst': 'fin'
+    };
+
+    const agentColorMapping = {
+        'intake': 'var(--accent-blue)',
+        'value': '#facc15',
+        'tech': 'var(--accent-green)',
+        'risk': 'var(--accent-danger)',
+        'fin': 'var(--accent-magenta)',
+        'system': 'var(--accent-indigo)',
+        'user': '#fff'
+    };
 
     function addLog(agent, message, type = 'tech') {
         const div = document.createElement('div');
-        div.className = 'agent-log';
-        div.innerHTML = `<span class="agent-name agent-${type}">[${agent}]</span> ${message}`;
+        div.className = `agent-log log-type-${type}`;
+        
+        let color = agentColorMapping[type] || agentColorMapping['tech'];
+        if(agent === 'USER') color = agentColorMapping['user'];
+        if(agent === 'SYSTEM') color = agentColorMapping['system'];
+        if(agent === 'ERROR') color = agentColorMapping['risk'];
+
+        div.innerHTML = `<span class="agent-name" style="color: ${color}">[${agent}]</span><span class="msg-content">${message}</span>`;
         consoleOutput.appendChild(div);
-        consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        
+        // Smooth scroll to bottom
+        consoleOutput.scrollTo({
+            top: consoleOutput.scrollHeight,
+            behavior: 'smooth'
+        });
     }
 
-    function updateStatus(agent, isActive) {
-        // Map backend node names to frontend ID suffixes
-        const mapping = {
-            'value_analyst': 'value',
-            'technical_analyst': 'tech',
-            'risk_compliance': 'risk',
-            'financial_analyst': 'financial',
-            // Also handle generic or specific mappings if needed
-            'Value_Analyst': 'value',
-            'Technical_Analyst': 'tech',
-            'Risk_Compliance': 'risk',
-            'Financial_Analyst': 'financial'
-        };
-        const id = mapping[agent];
-        if (id) {
-            const dot = document.querySelector(`.dot-${id}`);
-            if (dot) {
-                if (isActive) dot.classList.add('pulse');
-                else dot.classList.remove('pulse');
+    function deactivateAllNodes() {
+        document.querySelectorAll('.agent-node').forEach(node => {
+            node.className = 'agent-node'; // reset to base
+        });
+        document.querySelectorAll('.conn-line').forEach(line => {
+            line.classList.remove('active');
+        });
+    }
+
+    function activateNode(agentName) {
+        deactivateAllNodes();
+        
+        if (agentName === 'USER') {
+            document.getElementById('node-user').classList.add('active-user');
+            return;
+        }
+
+        const nodeId = agentNodeMapping[agentName];
+        if (nodeId) {
+            const nodeEl = document.getElementById(`node-${nodeId}`);
+            if (nodeEl) {
+                nodeEl.classList.add(`active-${nodeId}`);
+            }
+            if(nodeId === 'intake') {
+                document.getElementById('conn-user-intake')?.classList.add('active');
+            } else if (nodeId !== 'fin') {
+                document.getElementById(`conn-intake-${nodeId}`)?.classList.add('active');
+            } else if (nodeId === 'fin') {
+                document.getElementById(`conn-value-fin`)?.classList.add('active');
+                document.getElementById(`conn-risk-fin`)?.classList.add('active');
+                document.getElementById(`conn-tech-fin`)?.classList.add('active');
             }
         }
     }
+
+    async function fetchProactiveState() {
+        try {
+            const stateRes = await fetch('/api/v1/state');
+            if (!stateRes.ok) return;
+            const stateData = await stateRes.json();
+            
+            if (stateData && stateData.final_weights && Object.keys(stateData.final_weights).length > 0) {
+                const briefContainer = document.getElementById('daily-brief');
+                const content = document.getElementById('daily-brief-content');
+                
+                let cardsHtml = '';
+                for(const [ticker, weight] of Object.entries(stateData.final_weights)) {
+                    cardsHtml += `
+                        <div class="brief-stock-card">
+                            <span class="brief-symbol">${ticker}</span>
+                            <span class="brief-weight">${(weight*100).toFixed(2)}% ALLOCATION</span>
+                        </div>
+                    `;
+                }
+                content.innerHTML = cardsHtml;
+                briefContainer.classList.remove('hidden');
+            }
+        } catch(e) { console.error('Error fetching proactive state', e); }
+    }
+
+    // Call it immediately on load
+    fetchProactiveState();
 
     async function handleAnalysis() {
         const query = userInput.value.trim();
         if (!query) return;
 
+        // UI Reset
         userInput.value = '';
-        addLog('USER', query, 'tech');
-        addLog('SYSTEM', 'Spinning up swarm...', 'tech');
-        
-        // Clear old proposals and report
-        document.getElementById('synthesis-report').innerHTML = '';
-        const header = proposalsPanel.firstElementChild;
         proposalsPanel.innerHTML = '';
-        proposalsPanel.appendChild(header);
+        synthesisReport.innerHTML = `
+            <div style="padding-top: 2rem; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;">
+               <p style="color: var(--text-sec)">Analyzing directive...</p>
+            </div>
+        `;
+        synthesisLoading.classList.remove('hidden');
+
+        // Initial Logs & Vis
+        addLog('USER', query, 'user');
+        activateNode('USER');
+        
+        setTimeout(() => {
+            addLog('SYSTEM', 'Spinning up swarm via distributed task queue (Celery)...', 'system');
+        }, 500);
 
         try {
-            const response = await fetch('/api/v1/analyze', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_request: query })
+            // Trigger Celery Task
+            const triggerRes = await fetch('/api/v1/trigger', {
+                method: 'POST'
             });
 
-            if (!response.ok) throw new Error('API Error');
+            if (!triggerRes.ok) throw new Error('API Error triggering pipeline');
+            addLog('SYSTEM', 'Pipeline execution triggered. Monitoring state...', 'tool');
 
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let accumulatedData = '';
+            // Simulated active nodes while polling
+            const nodes = ['intake', 'value', 'tech', 'risk', 'fin'];
+            let nodeIdx = 0;
+            const simInterval = setInterval(() => {
+                activateNode(nodes[nodeIdx]);
+                addLog('SYSTEM', `Agent [${nodes[nodeIdx].toUpperCase()}] processing data subset...`, 'tech');
+                nodeIdx = (nodeIdx + 1) % nodes.length;
+            }, 3000);
 
-            while (true) {
-                const { value, done } = await reader.read();
-                if (done) break;
-
-                accumulatedData += decoder.decode(value, { stream: true });
-                const lines = accumulatedData.split('\n\n');
-                accumulatedData = lines.pop(); // Keep incomplete line
-
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        try {
-                            const data = JSON.parse(line.substring(6));
-                            processEvent(data);
-                        } catch (e) {
-                            console.error('Error parsing SSE event:', e);
-                        }
+            // Poll for state
+            const pollInterval = setInterval(async () => {
+                try {
+                    const stateRes = await fetch('/api/v1/state');
+                    if (!stateRes.ok) return;
+                    
+                    const stateData = await stateRes.json();
+                    
+                    // If it has final_weights, the pipeline is likely done
+                    if (stateData && stateData.final_weights && Object.keys(stateData.final_weights).length > 0) {
+                        clearInterval(pollInterval);
+                        clearInterval(simInterval);
+                        
+                        // Fake a final result event for the UI processor
+                        const finalEvent = {
+                            type: 'final_result',
+                            final_report: "## Final Allocation\\nPipeline execution stabilized. Asset allocation derived from Hierarchical Risk Parity optimization.\\n\\n" + JSON.stringify(stateData.final_weights, null, 2),
+                            proposals: Object.keys(stateData.final_weights).map(ticker => ({
+                                symbol: ticker,
+                                rationale: `Optimized weight: ${(stateData.final_weights[ticker]*100).toFixed(2)}%`,
+                                metrics: stateData.backtest_metrics || { Sharpe_Ratio: 'N/A', Max_Drawdown: 'N/A' }
+                            })),
+                            is_validated: stateData.is_validated
+                        };
+                        
+                        processEvent(finalEvent);
                     }
-                }
-            }
+                } catch(e) { /* ignore single poll failures */ }
+            }, 3000);
+
         } catch (err) {
             addLog('ERROR', 'Workflow execution failed. Check server logs.', 'risk');
+            synthesisLoading.classList.add('hidden');
+            synthesisReport.innerHTML = `<div class="empty-state">Error executing workflow.</div>`;
+            deactivateAllNodes();
             console.error(err);
         }
+    }
+
+    // Basic markdown to html parser
+    function parseMarkdown(md) {
+        if (!md) return '';
+        let html = md.replace(/^### (.*$)/gim, '<h3>$1</h3>')
+            .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+            .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+            .replace(/^\> (.*$)/gim, '<blockquote>$1</blockquote>')
+            .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
+            .replace(/\*(.*)\*/gim, '<i>$1</i>')
+            .replace(/!\[(.*?)\]\((.*?)\)/gim, "<img alt='$1' src='$2' />")
+            .replace(/\[(.*?)\]\((.*?)\)/gim, "<a href='$2'>$1</a>")
+            .replace(/\n$/gim, '<br />');
+
+        // Very basic list handling
+        html = html.replace(/^\- (.*$)/gim, '<ul><li>$1</li></ul>');
+        html = html.replace(/<\/ul>\n<ul>/gim, '');
+        
+        // line breaks
+        return html.replace(/\n/g, '<p></p>');
     }
 
     function processEvent(data) {
         switch (data.type) {
             case 'agent_start':
                 const agentName = data.agent || 'Agent';
-                addLog(agentName, 'Thinking...', getAgentType(agentName));
-                updateStatus(agentName, true);
+                const mappedType = agentNodeMapping[agentName] || 'tech';
+                addLog(agentName, 'Processing node inputs...', mappedType);
+                activateNode(agentName);
                 break;
+
             case 'tool_start':
-                addLog('SYSTEM', `Calling tool: ${data.tool} (${data.input || ''})`, 'tech');
+                addLog('SYSTEM', `Executing tool: ${data.tool} (${data.input || ''})`, 'tool');
                 break;
-            case 'tool_end':
-                // Optional: add tool finish log
-                break;
+
             case 'final_result':
-                // Reset all dots
-                document.querySelectorAll('.status-dot').forEach(d => d.classList.remove('pulse'));
+                deactivateAllNodes();
+                synthesisLoading.classList.add('hidden');
                 
-                // Render Synthesis Report
-                const reportContainer = document.getElementById('synthesis-report');
+                // Final node glow
+                document.getElementById('node-fin')?.classList.add('active-fin');
+                
+                // Render Synthesis Report with typing effect
                 if (data.final_report) {
-                    reportContainer.innerHTML = `
-                        <div class="synthesis-card">
-                            <div class="synthesis-header">STRATEGIC SYNTHESIS</div>
-                            <div class="synthesis-body">${data.final_report}</div>
-                        </div>
-                    `;
+                    const parsedHtml = parseMarkdown(data.final_report);
+                    // Fast insert, an advanced version would stream the typed text
+                    synthesisReport.innerHTML = `<div class="typing-container" style="animation: none; border-right: none;">${parsedHtml}</div>`;
+                } else {
+                    synthesisReport.innerHTML = `<div class="empty-state">Synthesis resulted in no definitive strategy.</div>`;
                 }
 
+                // Render Proposals
                 if (data.proposals && data.proposals.length > 0) {
-                    data.proposals.forEach(prop => {
-                        renderProposal(prop, data.is_validated);
+                    data.proposals.forEach((prop, i) => {
+                        // Stagger animation
+                        setTimeout(() => {
+                            renderProposal(prop, data.is_validated);
+                        }, i * 200);
                     });
-                    addLog('SYSTEM', 'Analysis complete. Final report generated.', 'tech');
+                    addLog('SYSTEM', 'Analysis complete. Final report and proposals generated.', 'system');
                 } else {
                     addLog('SYSTEM', 'No suitable assets found meeting criteria.', 'risk');
                 }
+                
+                setTimeout(() => deactivateAllNodes(), 3000);
                 break;
+
             case 'error':
                 addLog('ERROR', data.detail, 'risk');
+                synthesisLoading.classList.add('hidden');
+                deactivateAllNodes();
                 break;
         }
     }
 
-    function getAgentType(name) {
-        const n = name.toLowerCase();
-        if (n.includes('value')) return 'value';
-        if (n.includes('tech')) return 'tech';
-        if (n.includes('risk')) return 'risk';
-        if (n.includes('financial')) return 'financial';
-        return 'tech';
-    }
-
     function renderProposal(prop, isValidated) {
         const card = document.createElement('div');
-        card.className = 'proposal-card';
+        card.className = isValidated ? 'proposal-card validated' : 'proposal-card';
         
-        const sharpe = prop.metrics ? prop.metrics.Sharpe_Ratio : 'N/A';
-        const drawdown = prop.metrics ? (prop.metrics.Max_Drawdown * 100).toFixed(1) : 'N/A';
+        let sharpe = prop.metrics ? prop.metrics.Sharpe_Ratio : 'N/A';
+        let drawdown = prop.metrics ? prop.metrics.Max_Drawdown : 'N/A';
+
+        if (typeof sharpe === 'number') sharpe = sharpe.toFixed(2);
+        if (typeof drawdown === 'number') {
+            const isDanger = drawdown > 0.2 || drawdown < -0.2;
+            drawdown = `<span class="m-value ${isDanger ? 'danger' : ''}">${(drawdown * 100).toFixed(1)}%</span>`;
+        } else {
+            drawdown = `<span class="m-value">${drawdown}</span>`;
+        }
 
         card.innerHTML = `
-            <div class="token-header">
-                <span class="symbol">${prop.symbol}</span>
-                <span class="badge ${isValidated ? 'badge-validated' : ''}">${isValidated ? 'VALIDATED' : 'REVIEW'}</span>
+            <div class="prop-header">
+                <span class="prop-symbol">${prop.symbol}</span>
+                <span class="prop-status ${isValidated ? 'validated' : ''}">${isValidated ? 'EXTRACTED / VALID' : 'CANDIDATE'}</span>
             </div>
-            <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 0.8rem;">
-                ${prop.rationale}
+            <div class="prop-body">
+                ${prop.rationale ? prop.rationale.substring(0, 150) + '...' : 'No rationale provided.'}
             </div>
-            <div class="metrics-grid">
+            <div class="prop-metrics">
                 <div class="metric-box">
-                    <span class="metric-label">SHARPE</span>
-                    <span class="metric-value">${typeof sharpe === 'number' ? sharpe.toFixed(2) : sharpe}</span>
+                    <span class="m-label">SHARPE RATIO</span>
+                    <span class="m-value">${sharpe}</span>
                 </div>
                 <div class="metric-box">
-                    <span class="metric-label">MAX DD</span>
-                    <span class="metric-value">${drawdown}%</span>
+                    <span class="m-label">MAX DRAWDOWN</span>
+                    ${drawdown}
                 </div>
             </div>
         `;

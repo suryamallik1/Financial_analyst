@@ -1,101 +1,54 @@
-from google.cloud import bigquery
-from typing import Dict, Any, Optional
 import json
-from app.core.config import settings
 import logging
+import redis.asyncio as redis
+from typing import Any, Optional, Dict
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 class CacheClient:
     """
-    Client for caching historical backtest results and external API responses in BigQuery.
+    Redis implementation for aggressive caching of external API responses
+    to protect free-tier limits.
     """
     def __init__(self):
-        # Assumes GOOGLE_APPLICATION_CREDENTIALS is set in environment
-        try:
-            self.client = bigquery.Client(project=settings.GCP_PROJECT_ID)
-            self.dataset_id = f"{settings.GCP_PROJECT_ID}.{settings.BIGQUERY_DATASET}"
-            self._ensure_dataset_exists()
-        except Exception as e:
-            logger.warning(f"Could not initialize BigQuery client: {e}. Caching will be disabled.")
-            self.client = None
+        self.redis_url = settings.REDIS_URL
+        self.redis = redis.from_url(self.redis_url, decode_responses=True)
+        # Default TTL is 24 hours
+        self.default_ttl = 86400 
 
-    def _ensure_dataset_exists(self):
-        if not self.client:
-            return
-            
-        dataset = bigquery.Dataset(self.dataset_id)
-        dataset.location = "US"
+    async def get_cached_response(self, source: str, query_key: str) -> Optional[Any]:
+        """Retrieves a cached JSON response if it exists."""
+        key = f"cache:{source}:{query_key}"
         try:
-            self.client.create_dataset(dataset, exists_ok=True)
-            self._ensure_tables_exist()
-        except Exception as e:
-            logger.error(f"Failed to create/verify dataset {self.dataset_id}: {e}")
-            
-    def _ensure_tables_exist(self):
-        # Table schema for generic API response cache
-        schema = [
-            bigquery.SchemaField("service", "STRING", mode="REQUIRED"),
-            bigquery.SchemaField("cache_key", "STRING", mode="REQUIRED"),
-            bigquery.SchemaField("response_json", "STRING", mode="REQUIRED"),
-            bigquery.SchemaField("created_at", "TIMESTAMP", mode="REQUIRED", default_value_expression="CURRENT_TIMESTAMP()"),
-        ]
-        table_id = f"{self.dataset_id}.api_cache"
-        table = bigquery.Table(table_id, schema=schema)
-        self.client.create_table(table, exists_ok=True)
-
-    async def get_cached_response(self, service: str, cache_key: str) -> Optional[Any]:
-        """
-        Retrieves a cached JSON response for a given service and key.
-        """
-        if not self.client:
-            return None
-            
-        query = f"""
-            SELECT response_json 
-            FROM `{self.dataset_id}.api_cache` 
-            WHERE service = @service AND cache_key = @cache_key
-            ORDER BY created_at DESC
-            LIMIT 1
-        """
-        job_config = bigquery.QueryJobConfig(
-            query_parameters=[
-                bigquery.ScalarQueryParameter("service", "STRING", service),
-                bigquery.ScalarQueryParameter("cache_key", "STRING", cache_key)
-            ]
-        )
-        
-        try:
-            query_job = self.client.query(query, job_config=job_config)
-            results = query_job.result()
-            
-            for row in results:
-                return json.loads(row.response_json)
-                
+            data = await self.redis.get(key)
+            if data:
+                logger.debug(f"Cache HIT for {key}")
+                return json.loads(data)
+            logger.debug(f"Cache MISS for {key}")
             return None
         except Exception as e:
-            logger.error(f"Error reading from api_cache: {e}")
+            logger.error(f"Redis GET error for {key}: {str(e)}")
             return None
 
-    async def set_cached_response(self, service: str, cache_key: str, data: Any):
-        """
-        Stores any serializable data as JSON string in the api_cache.
-        """
-        if not self.client:
-            return
-            
-        table_id = f"{self.dataset_id}.api_cache"
-        rows_to_insert = [
-            {
-                "service": service, 
-                "cache_key": cache_key, 
-                "response_json": json.dumps(data)
-            }
-        ]
-        
+    async def set_cached_response(self, source: str, query_key: str, data: Any, ttl: int = None) -> bool:
+        """Caches a JSON response with a TTL."""
+        key = f"cache:{source}:{query_key}"
+        expiry = ttl if ttl is not None else self.default_ttl
         try:
-            errors = self.client.insert_rows_json(table_id, rows_to_insert)
-            if errors:
-                logger.error(f"Errors occurred while caching to BigQuery: {errors}")
+            await self.redis.setex(key, expiry, json.dumps(data))
+            logger.debug(f"Cached data for {key} (TTL: {expiry}s)")
+            return True
         except Exception as e:
-             logger.error(f"Error writing to api_cache: {e}")
+            logger.error(f"Redis SET error for {key}: {str(e)}")
+            return False
+            
+    async def clear_cache(self, pattern: str = "cache:*"):
+        """Utility to clear cache matching a pattern."""
+        try:
+            keys = await self.redis.keys(pattern)
+            if keys:
+                await self.redis.delete(*keys)
+                logger.info(f"Cleared {len(keys)} keys matching {pattern}")
+        except Exception as e:
+            logger.error(f"Redis CLEAR error: {str(e)}")

@@ -3,15 +3,17 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     # API Keys
     GOOGLE_API_KEY: str = ""
-    ALPHA_VANTAGE_API_KEY: str = ""
-    POLYGON_API_KEY: str = ""
+    FMP_API_KEY: str = ""
+    TIINGO_API_KEY: str = ""
     FRED_API_KEY: str = ""
     NEWS_API_KEY: str = ""
     SERPER_API_KEY: str = ""
+    ALPACA_API_KEY: str = ""
+    ALPACA_SECRET_KEY: str = ""
     
-    # GCP
-    GCP_PROJECT_ID: str = ""
-    BIGQUERY_DATASET: str = "financial_data"
+    # Database & Cache
+    POSTGRES_URL: str = "postgresql://admin:password@localhost:5433/quant_db"
+    REDIS_URL: str = "redis://localhost:6379/0"
     
     # App
     ENVIRONMENT: str = "development"

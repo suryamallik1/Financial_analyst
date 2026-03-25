@@ -1,93 +1,84 @@
 import vectorbt as vbt
 import pandas as pd
 import numpy as np
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, List
+import logging
+
+logger = logging.getLogger(__name__)
 
 class BacktestEngine:
     """
-    Vectorized backtesting engine wrapper using VectorBT.
+    Vectorized backtesting engine using VectorBT.
+    Refactored to accept target fractional portfolio weights, 
+    slippage models, and 0.001% fees.
     """
     
-    @staticmethod
-    def run_backtest(
-        price_data: pd.DataFrame, 
-        entries: pd.Series, 
-        exits: pd.Series,
-        freq: str = '1d',
-        fees: float = 0.001
-    ) -> Dict[str, Any]:
+    async def simulate_portfolio(self, close_prices: Dict[str, List[float]], 
+                                 target_weights: Dict[str, float], 
+                                 fees: float = 0.00001, # 0.001%
+                                 slippage: float = 0.0005) -> Dict[str, Any]:
         """
-        Runs a vectorized backtest on the given price data and signals.
-        
-        Args:
-            price_data: DataFrame with at least a 'Close' column indexed by Datetime.
-            entries: Boolean Series indicating entry signals.
-            exits: Boolean Series indicating exit signals.
-            freq: Data frequency ('1d', '1h', etc.).
-            fees: Trading fee percentage (0.001 = 0.1%).
+        Runs a vectorized backtest by translating target weights into daily rebalancing orders.
+        """
+        if not close_prices or not target_weights:
+            return {}
             
-        Returns:
-            Dictionary containing key performance metrics.
-        """
-        if 'Close' not in price_data.columns:
-            raise ValueError("Price data must contain a 'Close' column")
+        prices_df = pd.DataFrame(close_prices)
+        if prices_df.empty:
+            return {}
+            
+        # For a true backtest, we need a time series of weights. 
+        # In this operational mode, we validate if rebalancing TO these weights TODAY 
+        # (and holding) is viable natively, or historically how these signals performed.
+        # Since this is a daily pipeline, we simulate the 'last 30 days' performance 
+        # assuming these weights were held, to calculate Sharpe/Drawdown constraints.
+        
+        # Create a weights DataFrame matching the prices index
+        weights_df = pd.DataFrame(index=prices_df.index, columns=prices_df.columns)
+        for symbol, weight in target_weights.items():
+            if symbol in weights_df.columns:
+                weights_df[symbol] = weight
+        weights_df.fillna(0.0, inplace=True)
+        
+        try:
+            # VectorBT standard portfolio from orders 
+            # size_type=2 means 'targetpercent'
+            portfolio = vbt.Portfolio.from_orders(
+                prices_df,
+                size=weights_df,
+                size_type='targetpercent',
+                freq='1d',
+                init_cash=100000.0,
+                fees=fees,
+                slippage=slippage
+            )
+            
+            return self._calculate_metrics(portfolio)
+        except Exception as e:
+            logger.error(f"VectorBT simulation failed: {e}")
+            return {}
 
-        # Create portfolio from signals
-        portfolio = vbt.Portfolio.from_signals(
-            price_data['Close'],
-            entries,
-            exits,
-            freq=freq,
-            fees=fees,
-            init_cash=100000.0,
-            short_cash=None # Long only for now
-        )
-
-        return BacktestEngine._calculate_metrics(portfolio)
-        
-    @staticmethod
-    def run_buy_and_hold(price_data: pd.DataFrame, freq: str = '1d') -> Dict[str, Any]:
-        """
-        Runs a benchmark buy and hold strategy.
-        """
-        if 'Close' not in price_data.columns:
-             raise ValueError("Price data must contain a 'Close' column")
-             
-        # Create a single entry at the beginning, no exits
-        entries = pd.Series(False, index=price_data.index)
-        entries.iloc[0] = True
-        
-        exits = pd.Series(False, index=price_data.index)
-        
-        portfolio = vbt.Portfolio.from_signals(
-            price_data['Close'],
-            entries,
-            exits,
-            freq=freq,
-            init_cash=100000.0
-        )
-        
-        return BacktestEngine._calculate_metrics(portfolio)
-
-    @staticmethod
-    def _calculate_metrics(portfolio: vbt.Portfolio) -> Dict[str, Any]:
-        """
-        Extracts and formats key performance metrics from a VectorBT Portfolio.
-        """
-        
-        # Calculate Win Rate explicitly using trades
-        trades = portfolio.trades
-        win_rate = trades.win_rate() if len(trades) > 0 else 0.0
-
-        metrics = {
-            "Total_Return": portfolio.total_return(),
-            "Annualized_Return": portfolio.annualized_return(),
-            "Sharpe_Ratio": portfolio.sharpe_ratio(),
-            "Sortino_Ratio": portfolio.sortino_ratio(),
-            "Max_Drawdown": portfolio.max_drawdown(),
-            "Win_Rate": win_rate,
-            "Total_Trades": len(trades)
-        }
-        
-        # Convert NumPy floats to standard Python floats for JSON serialization later
-        return {k: float(v) if not pd.isna(v) else 0.0 for k, v in metrics.items()}
+    def _calculate_metrics(self, portfolio: vbt.Portfolio) -> Dict[str, Any]:
+        """Extracts and formats key metrics for the LangGraph state."""
+        try:
+            sharpe = portfolio.sharpe_ratio()
+            # VectorBT returns Sharpe as array if multiple columns, but we supplied exact matrix
+            if isinstance(sharpe, pd.Series):
+                sharpe = sharpe.mean() # Aggregate
+                
+            max_dd = portfolio.max_drawdown()
+            if isinstance(max_dd, pd.Series):
+                max_dd = max_dd.min() # Max drawdown is usually a negative number
+                
+            # Convert to absolute percentage for max_dd
+            max_dd_perc = abs(float(max_dd)) * 100 if not pd.isna(max_dd) else 0.0
+            
+            metrics = {
+                "total_return": float(portfolio.total_return().mean() if isinstance(portfolio.total_return(), pd.Series) else portfolio.total_return()),
+                "sharpe_ratio": float(sharpe) if not pd.isna(sharpe) else 0.0,
+                "max_drawdown": max_dd_perc
+            }
+            return metrics
+        except Exception as e:
+            logger.error(f"Metric calculation error: {e}")
+            return {"sharpe_ratio": 0.0, "max_drawdown": 100.0}

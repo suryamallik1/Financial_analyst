@@ -3,52 +3,161 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Asset Command Center</title>
+    <title>Multi-Asset Intelligence</title>
+    <!-- Premium fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@300;400;600;800&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <div class="dashboard-container">
-        <header>
-            <div class="logo-section">
-                <h1>COMMAND CENTER <span style="opacity: 0.3;">//</span> ASSET INTELLIGENCE</h1>
+    <!-- Animated background layers -->
+    <div class="bg-gradient bg-blob-1"></div>
+    <div class="bg-gradient bg-blob-2"></div>
+    <div class="bg-mesh"></div>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="glass-header">
+            <div class="logo">
+                <div class="logo-icon"></div>
+                <h1>MAI <span class="dimmed">PLATFORM</span></h1>
             </div>
-            <div class="status-section">
-                <div class="agent-status-cluster">
-                    <div class="agent-status" id="status-value"><span class="status-dot dot-value"></span> VALUE</div>
-                    <div class="agent-status" id="status-tech"><span class="status-dot dot-tech"></span> TECH</div>
-                    <div class="agent-status" id="status-risk"><span class="status-dot dot-risk"></span> RISK</div>
-                    <div class="agent-status" id="status-financial"><span class="status-dot dot-financial"></span> FINANCE</div>
-                </div>
-                <span class="status-badge" style="margin-left: 1.5rem;">● SYSTEM ACTIVE</span>
+            <div class="system-status">
+                <span class="pulse-ring">
+                    <span class="ring-inner"></span>
+                </span>
+                <span class="status-text">SYSTEM ONLINE</span>
             </div>
         </header>
 
-        <main class="main-grid">
-            <section class="console-section">
-                <div class="console-card">
-                    <div class="console-header">
-                        SWARM_TERMINAL_V1.0.4.LOCAL
+        <!-- Proactive Daily Suggestions -->
+        <section class="daily-brief-section hidden" id="daily-brief">
+            <div class="glass-card elite-card">
+                <div class="card-header highlight-gold">
+                    <div style="display: flex; align-items: center; gap: 0.5rem">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-gold)" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        <h2 style="color: var(--accent-gold);">DAILY SWARM BRIEF</h2>
                     </div>
-                    <div class="console-output" id="console-output">
-                        <div class="agent-log">
-                            <span class="agent-name agent-tech">[SYSTEM]</span> Initializing agentic cluster...
+                    <span class="badge" style="color: var(--accent-gold); border-color: var(--accent-gold);">AUTO-GENERATED</span>
+                </div>
+                <div class="brief-content" id="daily-brief-content">
+                    <!-- Injected active proactive picks here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Layout -->
+        <main class="dashboard-grid">
+            <!-- Left Column: Swarm Visualizer & Input -->
+            <section class="ops-column">
+                <div class="glass-card visualizer-card">
+                    <div class="card-header border-bottom">
+                        <div style="display: flex; align-items: center; gap: 0.5rem">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+                            <h2>SWARM TOPOLOGY</h2>
                         </div>
-                        <div class="agent-log">
-                            <span class="agent-name agent-tech">[SYSTEM]</span> Ready. Enter an asset class or analysis goal below.
+                        <span class="badge">V1.0.4 CORE</span>
+                    </div>
+                    <div class="swarm-visualizer" id="swarm-visualizer">
+                        <!-- Connecting SVGs -->
+                        <svg class="connections" preserveAspectRatio="none">
+                            <path class="conn-line" id="conn-user-intake" d="M 50%,15% L 50%,30%" />
+                            <path class="conn-line" id="conn-intake-value" d="M 50%,30% L 20%,60%" />
+                            <path class="conn-line" id="conn-intake-risk" d="M 50%,30% L 50%,60%" />
+                            <path class="conn-line" id="conn-intake-tech" d="M 50%,30% L 80%,60%" />
+                            
+                            <path class="conn-line" id="conn-value-fin" d="M 20%,60% L 50%,90%" />
+                            <path class="conn-line" id="conn-risk-fin" d="M 50%,60% L 50%,90%" />
+                            <path class="conn-line" id="conn-tech-fin" d="M 80%,60% L 50%,90%" />
+                            
+                            <!-- Actively pulsing glow paths will be added via JS overlaying these -->
+                        </svg>
+
+                        <!-- Agent Nodes -->
+                        <div class="agent-node node-user" id="node-user" style="top: 15%; left: 50%;">
+                            <div class="node-core"></div>
+                            <span class="node-label">USER</span>
+                        </div>
+                        <div class="agent-node node-intake" id="node-intake" style="top: 30%; left: 50%;">
+                            <div class="node-core"></div>
+                            <span class="node-label">INTAKE</span>
+                        </div>
+                        <div class="agent-node node-value" id="node-value" style="top: 60%; left: 20%;">
+                            <div class="node-core"></div>
+                            <span class="node-label">VALUE</span>
+                        </div>
+                        <div class="agent-node node-risk" id="node-risk" style="top: 60%; left: 50%;">
+                            <div class="node-core"></div>
+                            <span class="node-label">RISK</span>
+                        </div>
+                        <div class="agent-node node-tech" id="node-tech" style="top: 60%; left: 80%;">
+                            <div class="node-core"></div>
+                            <span class="node-label">TECH</span>
+                        </div>
+                        <div class="agent-node node-fin" id="node-fin" style="top: 90%; left: 50%;">
+                            <div class="node-core"></div>
+                            <span class="node-label">SYNTHESIZER</span>
                         </div>
                     </div>
-                    <div class="console-input-area">
-                        <input type="text" id="user-input" placeholder="e.g. Find high momentum tech stocks with strong fundamentals" autocomplete="off">
-                        <button id="send-btn">TRANSMIT</button>
+                </div>
+
+                <div class="glass-card terminal-card" style="display: flex; flex-direction: column;">
+                    <div class="card-header border-bottom">
+                        <div style="display: flex; align-items: center; gap: 0.5rem">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+                            <h2>TERMINAL</h2>
+                        </div>
+                    </div>
+                    <div class="terminal-output" id="console-output">
+                        <div class="terminal-welcome">
+                            [SYSTEM_INIT] Swarm Intelligence loaded.<br/>
+                            Awaiting directive...
+                        </div>
+                    </div>
+                    
+                    <div class="input-container">
+                        <input type="text" id="user-input" placeholder="Type your investment directive..." autocomplete="off">
+                        <button id="send-btn" class="glow-button">
+                            <span>TRANSMIT</span>
+                            <svg viewBox="0 0 24 24" fill="none" class="send-icon" width="16"><path d="M22 2L11 13M22 2L15 22L11 13M11 13L2 9L22 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </button>
                     </div>
                 </div>
             </section>
 
-            <aside class="proposals-panel" id="proposals-panel">
-                <div id="synthesis-report"></div>
-                <div style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 0.5rem; font-weight: bold; letter-spacing: 1px;">ACTIVE PROPOSALS</div>
-                <!-- Proposals will be injected here -->
-            </aside>
+            <!-- Right Column: Results -->
+            <section class="results-column">
+                <div class="glass-card synthesis-card highlight-border">
+                    <div class="card-header">
+                        <div style="display: flex; align-items: center; gap: 0.5rem">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" class="accent-icon" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8l-6-6z"/><path d="M14 3v5h5M16 13H8M16 17H8M10 9H8"/></svg>
+                            <h2 style="color: var(--accent-magenta);">SYNTHESIS REPORT</h2>
+                        </div>
+                        <div class="loading-bars hidden" id="synthesis-loading">
+                            <div></div><div></div><div></div>
+                        </div>
+                    </div>
+                    <div class="synthesis-content scrollable" id="synthesis-report">
+                        <div class="empty-state">
+                            <div class="empty-icon-wrapper">
+                                <svg viewBox="0 0 24 24" class="empty-icon" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                            </div>
+                            <p>No active directives.</p>
+                            <span>Initialize an analysis to produce synthesis.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="proposals-header">
+                    <h3>VALIDATED OPPORTUNITIES</h3>
+                    <div class="line-decorator"></div>
+                </div>
+                
+                <div class="proposals-stack scrollable" id="proposals-panel">
+                    <!-- Cards will be dynamically injected here -->
+                </div>
+            </section>
         </main>
     </div>
 

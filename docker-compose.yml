@@ -1,17 +1,76 @@
-version: "3.8"
+version: '3.8'
 
 services:
+  db:
+    image: postgres:15
+    container_name: quant_db
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: quant_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d quant_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: quant_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --save 60 1 --loglevel warning
+
   api:
     build: .
-    container_name: financial_analyst_api
+    container_name: quant_api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - .:/app
     ports:
-      - "8000:8080" # Map host's port 8000 to Cloud Run's expected port 8080
-    environment:
-      - ENVIRONMENT=development
-      - PORT=8080
+      - "8000:8000"
     env_file:
       - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  worker:
+    build: .
+    container_name: quant_celery_worker
+    command: celery -A app.core.tasks worker --loglevel=info
     volumes:
-      - ./app:/app/app # Live reload capable, optional but useful for local dev
-      # Make sure we don't accidentally override installed dependencies with a local venv
-      - /app/venv
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_started
+      db:
+        condition: service_healthy
+
+  beat:
+    build: .
+    container_name: quant_celery_beat
+    command: celery -A app.core.tasks beat --loglevel=info
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_started
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
